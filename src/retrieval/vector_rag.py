@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from .base import BaseRetriever, Evidence, RetrievalResult
-from .index_utils import ensure_text_unit_index, load_embedder
+from .index_utils import encode_texts, ensure_text_unit_index, load_embedder
 from .source_map import get_source_map
 
 ROOT      = Path(__file__).resolve().parents[2]
@@ -57,7 +57,7 @@ class VectorRAG(BaseRetriever):
         self._lazy_init()
 
     def _embed(self, text: str) -> list[float]:
-        vec = self._embedder.encode(text, normalize_embeddings=True)
+        vec = encode_texts(self._embedder, text, normalize_embeddings=True)
         return vec.tolist()
 
     def retrieve(self, query: str, tq: Optional[str] = None) -> RetrievalResult:

@@ -17,7 +17,7 @@ import csv
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -115,7 +115,7 @@ def main():
         "top_k": args.k,
         "total_queries": len(test_rows),
         "systems": list(systems.keys()),
-        "started_at": datetime.utcnow().isoformat() + "Z",
+        "started_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
     (out_path.parent / "run_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 

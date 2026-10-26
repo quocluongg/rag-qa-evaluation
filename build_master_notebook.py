@@ -308,7 +308,9 @@ Hệ thống sẽ chạy qua 50 câu hỏi cho cả 3 hệ thống (tổng cộn
 
 add_code("""# Cell 7: Thực thi benchmark với checkpoint tự động
 from pathlib import Path
+import gc
 import shutil
+import torch
 
 DRIVE_RUN = DRIVE_DIR / "benchmark_run.jsonl"
 LOCAL_RUN = Path("results/benchmark_run.jsonl")
@@ -318,6 +320,20 @@ LOCAL_RUN.parent.mkdir(parents=True, exist_ok=True)
 if DRIVE_RUN.exists() and not LOCAL_RUN.exists():
     print(f"Khôi phục file kết quả từ Drive: {DRIVE_RUN}")
     shutil.copy(DRIVE_RUN, LOCAL_RUN)
+
+# Giải phóng BGE-M3 khỏi kernel trước khi subprocess nạp model riêng,
+# tránh CUDA OOM do hai tiến trình cùng giữ model trên GPU.
+for _name in ("sys1_vanilla", "sys2_vector", "sys3_graph"):
+    globals().pop(_name, None)
+try:
+    from retrieval.index_utils import load_embedder
+    load_embedder.cache_clear()
+except Exception:
+    pass
+gc.collect()
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+    print(f"[GPU] Đã giải phóng bộ nhớ đệm trước khi chạy benchmark.")
 
 print("Bắt đầu chạy benchmark 3 hệ thống...")
 !python src/run_3systems.py --testset data/scientific_testset_50.csv --output results/benchmark_run.jsonl --k 5 --resume

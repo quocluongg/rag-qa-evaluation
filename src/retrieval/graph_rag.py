@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 from .base import BaseRetriever, Evidence, RetrievalResult
-from .index_utils import load_embedder
+from .index_utils import encode_texts, ensure_text_unit_index, load_embedder
 from .source_map import get_source_map
 
 ROOT         = Path(__file__).resolve().parents[2]
@@ -48,10 +48,12 @@ class GraphRAG(BaseRetriever):
         k: int = 5,
         embed_model: str = "BAAI/bge-m3",
         embedder=None,
+        index_dir: Optional[Path] = None,
     ):
         super().__init__(k)
         self._embed_model_name = embed_model
         self._embedder = embedder
+        self._index_dir = Path(index_dir) if index_dir is not None else None
         self._entities_df: pd.DataFrame | None = None
         self._rels_df:     pd.DataFrame | None = None
         self._tu_df:       pd.DataFrame | None = None
@@ -62,6 +64,10 @@ class GraphRAG(BaseRetriever):
         self._entity_ids_list: list[str] = []
         self._entity_id_to_name: dict[str, str] = {}
         self._entity_name_to_id: dict[str, str] = {}
+
+        # Pre-computed text-unit embeddings loaded from LanceDB (lazy)
+        self._tu_vecs: np.ndarray | None = None
+        self._tu_id_to_row: dict[str, int] = {}
 
     def _lazy_init(self):
         if self._entities_df is not None:
@@ -94,15 +100,37 @@ class GraphRAG(BaseRetriever):
             ent_texts.append(f"{name}. {desc}"[:512])
             ent_ids.append(row["id"])
         if ent_texts:
-            vecs = self._embedder.encode(
-                ent_texts, normalize_embeddings=True,
-                show_progress_bar=False, batch_size=64
+            vecs = encode_texts(
+                self._embedder,
+                ent_texts,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+                batch_size=32,
             )
-            self._entity_vecs      = vecs
+            self._entity_vecs      = np.asarray(vecs, dtype=np.float32)
             self._entity_ids_list  = ent_ids
 
+    def _build_text_index(self) -> None:
+        """Load pre-computed text-unit vectors so reranking needs no GPU encode."""
+        if self._tu_vecs is not None:
+            return
+        table = ensure_text_unit_index(self._embedder, db_dir=self._index_dir)
+        df = table.to_pandas()
+        if "id" not in df.columns or "vector" not in df.columns or df.empty:
+            return
+        ids = df["id"].astype(str).tolist()
+        vectors = [
+            np.asarray(vector, dtype=np.float32)
+            for vector in df["vector"].tolist()
+        ]
+        if not vectors:
+            return
+        self._tu_vecs = np.vstack(vectors)
+        self._tu_id_to_row = {tu_id: i for i, tu_id in enumerate(ids)}
+
     def _embed(self, text: str) -> np.ndarray:
-        return self._embedder.encode(text, normalize_embeddings=True)
+        vec = encode_texts(self._embedder, text, normalize_embeddings=True)
+        return np.asarray(vec, dtype=np.float32)
 
     def _entity_lookup(self, q_vec: np.ndarray) -> list[str]:
         """Return top-ENTITY_TOP_K entity ids by cosine similarity."""
@@ -163,17 +191,31 @@ class GraphRAG(BaseRetriever):
     def _rerank_tus(
         self, tu_ids: list[str], q_vec: np.ndarray
     ) -> list[tuple[str, float]]:
-        """Embed text_units and return [(tu_id, score)] sorted by score desc."""
+        """Rank text_units by cosine similarity, reusing LanceDB vectors."""
         rows = self._tu_df[self._tu_df["id"].isin(set(tu_ids))]
         if rows.empty:
             return []
-        texts  = rows["text"].tolist()
-        t_vecs = self._embedder.encode(
-            texts, normalize_embeddings=True,
-            show_progress_bar=False, batch_size=32
-        )
-        sims = t_vecs @ q_vec
-        pairs = list(zip(rows["id"].tolist(), sims.tolist()))
+
+        ids = rows["id"].astype(str).tolist()
+        self._build_text_index()
+        sims = None
+        if self._tu_vecs is not None and len(self._tu_id_to_row) > 0:
+            row_indices = [self._tu_id_to_row.get(tu_id) for tu_id in ids]
+            if all(index is not None for index in row_indices):
+                sims = self._tu_vecs[row_indices] @ q_vec
+
+        if sims is None:
+            texts = rows["text"].fillna("").astype(str).tolist()
+            t_vecs = encode_texts(
+                self._embedder,
+                texts,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+                batch_size=8,
+            )
+            sims = np.asarray(t_vecs, dtype=np.float32) @ q_vec
+
+        pairs = list(zip(ids, np.asarray(sims, dtype=np.float32).tolist()))
         pairs.sort(key=lambda x: x[1], reverse=True)
         return pairs
 

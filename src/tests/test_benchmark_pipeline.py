@@ -7,7 +7,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from retrieval.graph_rag import GraphRAG
-from retrieval.index_utils import ensure_text_unit_index, table_is_readable
+from retrieval.index_utils import encode_texts, ensure_text_unit_index, table_is_readable
 from retrieval.vector_rag import VectorRAG
 from testset_utils import gold_docs_for_row, repair_gold_doc_ids
 
@@ -69,6 +69,49 @@ def test_lancedb_index_is_built_and_readable(tmp_path):
     assert len(result.evidence) == 3
     assert all(ev.filename.endswith(".md") for ev in result.evidence)
     assert all(ev.content for ev in result.evidence)
+
+    graph = GraphRAG(k=3, embedder=embedder, index_dir=db_dir)
+    graph_result = graph.retrieve("Ngành Công nghệ vi mạch bán dẫn")
+    assert len(graph_result.evidence) == 3
+    assert all(ev.content for ev in graph_result.evidence)
+
+
+def test_graph_rerank_reuses_lancedb_vectors():
+    retriever = GraphRAG(embedder=FakeEmbedder())
+    retriever._tu_df = pd.DataFrame(
+        [
+            {"id": "tu-1", "text": "first", "entity_ids": ["e1"]},
+            {"id": "tu-2", "text": "second", "entity_ids": ["e2"]},
+        ]
+    )
+    retriever._tu_vecs = np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32)
+    retriever._tu_id_to_row = {"tu-1": 0, "tu-2": 1}
+
+    ranked = retriever._rerank_tus(
+        ["tu-1", "tu-2"], np.array([1.0, 0.0], dtype=np.float32)
+    )
+    assert [tu_id for tu_id, _ in ranked] == ["tu-1", "tu-2"]
+
+
+def test_encode_texts_falls_back_to_cpu_on_oom():
+    class OOMEmbedder(FakeEmbedder):
+        def __init__(self):
+            self.calls = 0
+
+        def encode(self, texts, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("CUDA out of memory")
+            return super().encode(texts, **kwargs)
+
+        def to(self, device):
+            self.device = device
+            return self
+
+    embedder = OOMEmbedder()
+    vec = encode_texts(embedder, "hello")
+    assert vec.shape == (16,)
+    assert embedder.device == "cpu"
 
 
 def test_graph_bfs_maps_relationship_names_to_entity_ids():

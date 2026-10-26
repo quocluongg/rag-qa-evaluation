@@ -3,6 +3,7 @@ index_utils.py — Build and repair the LanceDB vector index from local parquet 
 """
 from __future__ import annotations
 
+import os
 import shutil
 from functools import lru_cache
 from pathlib import Path
@@ -16,13 +17,51 @@ ROOT = Path(__file__).resolve().parents[2]
 LANCEDB_DIR = ROOT / "output" / "lancedb"
 TEXT_UNITS_PARQUET = ROOT / "output" / "text_units.parquet"
 TEXT_UNIT_TABLE = "text_unit_text"
+DEFAULT_MAX_SEQ_LENGTH = 512
 
 
 @lru_cache(maxsize=4)
 def load_embedder(model_name: str, device: Optional[str] = None) -> Any:
     from sentence_transformers import SentenceTransformer
 
-    return SentenceTransformer(model_name, device=device)
+    resolved_device = device or os.environ.get("EMBED_DEVICE") or None
+    if resolved_device in {"", "auto"}:
+        resolved_device = None
+    model = SentenceTransformer(model_name, device=resolved_device)
+    max_seq_length = int(os.environ.get("EMBED_MAX_SEQ_LENGTH", DEFAULT_MAX_SEQ_LENGTH))
+    model.max_seq_length = max_seq_length
+    print(
+        f"[embed] {model_name} | device={model.device} | "
+        f"max_seq_length={model.max_seq_length}"
+    )
+    return model
+
+
+def encode_texts(embedder: Any, texts: Any, **kwargs: Any) -> Any:
+    """Encode texts, retrying on CPU when the GPU runs out of memory."""
+    try:
+        return embedder.encode(texts, **kwargs)
+    except RuntimeError as exc:
+        message = str(exc).lower()
+        if "out of memory" not in message and "oom" not in message:
+            raise
+        print("[embed] CUDA out of memory; retrying embedding on CPU.")
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+        to_device = getattr(embedder, "to", None)
+        if callable(to_device):
+            try:
+                to_device("cpu")
+            except Exception:
+                pass
+        kwargs.pop("device", None)
+        kwargs["batch_size"] = min(int(kwargs.get("batch_size", 16) or 16), 16)
+        return embedder.encode(texts, **kwargs)
 
 
 def table_is_readable(
@@ -48,7 +87,9 @@ def table_is_readable(
 
 
 def _embedder_dim(embedder: Any) -> Optional[int]:
-    get_dim = getattr(embedder, "get_sentence_embedding_dimension", None)
+    get_dim = getattr(embedder, "get_embedding_dimension", None)
+    if not callable(get_dim):
+        get_dim = getattr(embedder, "get_sentence_embedding_dimension", None)
     if callable(get_dim):
         try:
             return int(get_dim())
@@ -77,7 +118,8 @@ def build_text_unit_table(
     texts = df[text_col].fillna("").astype(str).tolist()
 
     print(f"[index] Embedding {len(texts)} rows for '{table_name}' from {parquet_file.name}...")
-    vectors = embedder.encode(
+    vectors = encode_texts(
+        embedder,
         texts,
         batch_size=batch_size,
         normalize_embeddings=True,
