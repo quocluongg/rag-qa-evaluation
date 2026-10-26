@@ -1,0 +1,263 @@
+{
+    "CTDT_AIoT_2025.md": {
+        "doc_id": "CTDT_AIoT_2025",
+        "title": "Chương trình Đào tạo – Trí tuệ nhân tạo vạn vật (AIoT)",
+        "valid_from": "01/09/2025",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "CTDT_ATTT_2025.md": {
+        "doc_id": "CTDT_ATTT_2025",
+        "title": "Chương trình Đào tạo – An toàn thông tin",
+        "valid_from": "01/09/2025",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "CTDT_CNBD_2025.md": {
+        "doc_id": "CTDT_CNBD_2025",
+        "title": "Chương trình Đào tạo – Công nghệ vi mạch bán dẫn",
+        "valid_from": "01/09/2025",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "CTDT_CNTT_2026.md": {
+        "doc_id": "CTDT_CNTT_2026",
+        "title": "Chương trình Đào tạo – Công nghệ thông tin",
+        "valid_from": "01/09/2026",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2026",
+        "replaces": "CTDT_CNTT_2022 (phiên bản cũ)",
+        "replaced_by": ""
+    },
+    "CTDT_HKVT_2026.md": {
+        "doc_id": "CTDT_HKVT_2026",
+        "title": "Chương trình Đào tạo – Kỹ thuật Truyền thông Hàng không vũ trụ",
+        "valid_from": "01/09/2026",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2026 (chương trình mới)",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "CTDT_KTDT_2025.md": {
+        "doc_id": "CTDT_KTDT_2025",
+        "title": "Chương trình Đào tạo – Công nghệ kỹ thuật Điện, Điện tử",
+        "valid_from": "01/09/2025",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "CTDT_KTVT_2025.md": {
+        "doc_id": "CTDT_KTVT_2025",
+        "title": "Chương trình Đào tạo – Kỹ thuật Điện tử viễn thông",
+        "valid_from": "01/09/2025",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "CTDT_TKGAME_2026.md": {
+        "doc_id": "CTDT_TKGAME_2026",
+        "title": "Chương trình Đào tạo – Thiết kế đồ họa Game (Game Art)",
+        "valid_from": "01/09/2026",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2026 (chương trình mới)",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "CTDT_TTDPT_2025.md": {
+        "doc_id": "CTDT_TTDPT_2025",
+        "title": "Chương trình Đào tạo – Truyền thông đa phương tiện",
+        "valid_from": "01/09/2025",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "CTDT_UAV_2026.md": {
+        "doc_id": "CTDT_UAV_2026",
+        "title": "Chương trình Đào tạo – UAV và Robot di động tự hành",
+        "valid_from": "01/09/2026",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2026 (chương trình mới)",
+        "replaces": "",
+        "replaced_by": ""
+    },
+    "Dh_2024.md": {
+        "doc_id": "Dh_2024",
+        "title": "Đề án Tuyển sinh Đại học hệ chính quy năm 2024",
+        "valid_from": "01/01/2024",
+        "valid_to": "31/12/2024",
+        "version": "Bản ban hành năm 2024",
+        "replaces": "Dh_2023",
+        "replaced_by": "Dh_2025"
+    },
+    "Dh_2025.md": {
+        "doc_id": "Dh_2025",
+        "title": "Đề án Tuyển sinh Đại học hệ chính quy năm 2025",
+        "valid_from": "01/01/2025",
+        "valid_to": "31/12/2025",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "Dh_2024",
+        "replaced_by": "Dh_2026"
+    },
+    "Dh_2026.md": {
+        "doc_id": "Dh_2026",
+        "title": "Đề án Tuyển sinh Đại học hệ chính quy năm 2026",
+        "valid_from": "01/01/2026",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2026",
+        "replaces": "Dh_2025",
+        "replaced_by": ""
+    },
+    "QD_1440_QCHBong_2024.md": {
+        "doc_id": "QD_1440_QCHBong_2024",
+        "title": "Quy định Quỹ học bổng và hỗ trợ người học – QĐ 1440/QĐ-HV",
+        "valid_from": "01/09/2024",
+        "valid_to": "31/08/2026",
+        "version": "Bản sửa đổi năm 2024 (thay thế QĐ 1883/QĐ-HV ngày 14/11/2023)",
+        "replaces": "QĐ 1883/QĐ-HV ngày 14/11/2023",
+        "replaced_by": "QD_542HV_QCHBong_2026"
+    },
+    "QD_542HV_QCHBong_2026.md": {
+        "doc_id": "QD_542HV_QCHBong_2026",
+        "title": "Quy định Quỹ học bổng và hỗ trợ người học – QĐ 542/QĐ-HV",
+        "valid_from": "01/09/2026",
+        "valid_to": "",
+        "version": "Bản sửa đổi năm 2026 (thay thế QĐ 1440/QĐ-HV năm 2024)",
+        "replaces": "QD_1440_QCHBong_2024",
+        "replaced_by": ""
+    },
+    "TB_TET_2023.md": {
+        "doc_id": "TB_TET_2023",
+        "title": "Thông báo lịch nghỉ Tết Dương lịch và Tết Nguyên đán Quý Mão 2023",
+        "valid_from": "27/12/2022",
+        "valid_to": "29/01/2023",
+        "version": "Phiên bản 1.0 – Thông báo số 509/TB-HVCS",
+        "replaces": "",
+        "replaced_by": "TB_TET_2024"
+    },
+    "TB_TET_2024.md": {
+        "doc_id": "TB_TET_2024",
+        "title": "Thông báo lịch nghỉ Tết Dương lịch và Tết Nguyên đán Giáp Thìn 2024",
+        "valid_from": "01/01/2024",
+        "valid_to": "18/02/2024",
+        "version": "Phiên bản 1.0 – Thông báo năm 2024",
+        "replaces": "TB_TET_2023",
+        "replaced_by": "TB_TET_2025"
+    },
+    "TB_TET_2025.md": {
+        "doc_id": "TB_TET_2025",
+        "title": "Thông báo lịch nghỉ Tết Dương lịch và Tết Nguyên đán Ất Tỵ 2025",
+        "valid_from": "01/01/2025",
+        "valid_to": "09/02/2025",
+        "version": "Phiên bản 1.0 – Thông báo năm 2025",
+        "replaces": "TB_TET_2024",
+        "replaced_by": "TB_TET_2026"
+    },
+    "TB_TET_2026.md": {
+        "doc_id": "TB_TET_2026",
+        "title": "Thông báo lịch nghỉ Tết Dương lịch và Tết Nguyên đán Bính Ngọ 2026",
+        "valid_from": "01/01/2026",
+        "valid_to": "22/02/2026",
+        "version": "Phiên bản 1.0 – Thông báo năm 2026",
+        "replaces": "TB_TET_2025",
+        "replaced_by": ""
+    },
+    "TB_THPT_2022.md": {
+        "doc_id": "TB_THPT_2022",
+        "title": "Thông báo điểm chuẩn trúng tuyển THPT quốc gia năm 2022",
+        "valid_from": "01/09/2022",
+        "valid_to": "31/12/2022",
+        "version": "Phiên bản 1.0 – Thông báo năm 2022",
+        "replaces": "TB_THPT_2021",
+        "replaced_by": "TB_THPT_2023"
+    },
+    "TB_THPT_2023.md": {
+        "doc_id": "TB_THPT_2023",
+        "title": "Thông báo điểm chuẩn trúng tuyển THPT quốc gia năm 2023",
+        "valid_from": "01/09/2023",
+        "valid_to": "31/12/2023",
+        "version": "Phiên bản 1.0 – Thông báo năm 2023",
+        "replaces": "TB_THPT_2022",
+        "replaced_by": "TB_THPT_2024"
+    },
+    "TB_THPT_2024.md": {
+        "doc_id": "TB_THPT_2024",
+        "title": "Thông báo điểm chuẩn trúng tuyển THPT quốc gia năm 2024",
+        "valid_from": "01/09/2024",
+        "valid_to": "31/12/2024",
+        "version": "Phiên bản 1.0 – Thông báo năm 2024",
+        "replaces": "TB_THPT_2023",
+        "replaced_by": "TB_THPT_2025"
+    },
+    "TB_THPT_2025.md": {
+        "doc_id": "TB_THPT_2025",
+        "title": "Thông báo điểm chuẩn trúng tuyển THPT quốc gia năm 2025",
+        "valid_from": "01/09/2025",
+        "valid_to": "31/12/2025",
+        "version": "Phiên bản 1.0 – Thông báo năm 2025",
+        "replaces": "TB_THPT_2024",
+        "replaced_by": ""
+    },
+    "TS_2024.md": {
+        "doc_id": "TS_2024",
+        "title": "Thông báo Tuyển sinh trình độ Tiến sĩ đợt 1 năm 2024",
+        "valid_from": "01/01/2024",
+        "valid_to": "31/12/2024",
+        "version": "Bản ban hành năm 2024",
+        "replaces": "TS_2023",
+        "replaced_by": "TS_2025"
+    },
+    "TS_2025.md": {
+        "doc_id": "TS_2025",
+        "title": "Thông báo Tuyển sinh trình độ Tiến sĩ đợt 1 năm 2025",
+        "valid_from": "01/01/2025",
+        "valid_to": "31/12/2025",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "TS_2024",
+        "replaced_by": "TS_2026"
+    },
+    "TS_2026.md": {
+        "doc_id": "TS_2026",
+        "title": "Thông báo Tuyển sinh trình độ Tiến sĩ đợt 1 năm 2026",
+        "valid_from": "01/01/2026",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2026",
+        "replaces": "TS_2025",
+        "replaced_by": ""
+    },
+    "ThS_2024.md": {
+        "doc_id": "ThS_2024",
+        "title": "Thông báo Tuyển sinh trình độ Thạc sĩ đợt 1 năm 2024",
+        "valid_from": "01/01/2024",
+        "valid_to": "31/12/2024",
+        "version": "Bản ban hành năm 2024",
+        "replaces": "ThS_2023",
+        "replaced_by": "ThS_2025"
+    },
+    "ThS_2025.md": {
+        "doc_id": "ThS_2025",
+        "title": "Thông báo Tuyển sinh trình độ Thạc sĩ đợt 1 năm 2025",
+        "valid_from": "03/03/2025",
+        "valid_to": "31/12/2025",
+        "version": "Bản ban hành năm 2025",
+        "replaces": "ThS_2024",
+        "replaced_by": "ThS_2026"
+    },
+    "ThS_2026.md": {
+        "doc_id": "ThS_2026",
+        "title": "Thông báo Tuyển sinh trình độ Thạc sĩ đợt 1 năm 2026",
+        "valid_from": "01/01/2026",
+        "valid_to": "",
+        "version": "Bản ban hành năm 2026",
+        "replaces": "ThS_2025",
+        "replaced_by": ""
+    }
+}

@@ -1,0 +1,396 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}%
+\usepackage{multirow}%
+\usepackage{amsmath,amssymb,amsfonts}%
+\usepackage{amsthm}%
+\usepackage{mathrsfs}%
+%\usepackage[title]{appendix}%
+\usepackage{xcolor}%
+\usepackage{textcomp}%
+\usepackage{manyfoot}%
+\usepackage{booktabs}%
+% \usepackage{algorithm}%
+% \usepackage{algorithmicx}%
+\usepackage{algpseudocode}%
+\usepackage{listings}%
+\numberwithin{equation}{section}
+\newtheorem{defn}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}% 
+\newtheorem{example}{Example}
+\newtheorem{remark}{Remark}
+%\theoremstyle{thmstylethree}
+\newtheorem{definition}{Definition}
+\usepackage{cite}
+%\usepackage{amsmath,amssymb,amsfonts}
+%\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{booktabs}%
+\usepackage{algorithm}%
+\usepackage{algorithmicx}%
+\usepackage{algpseudocode}%
+\flushbottom
+% \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+%     T\kern-.1667em\lower.7ex\Hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{Temporal Vector RAG vs. Temporal GraphRAG: When Does Graph Structure Improve Time-Aware Retrieval?\
+% {\footnotesize \textsuperscript{*}Note: Sub-titles are not captured in Xplore and
+% should not be used}
+% \thanks{Identify applicable funding agency here. If none, delete this.}
+% 
+}
+
+\author{\IEEEauthorblockN{1\textsuperscript{st} Lam Duy Quy}
+\IEEEauthorblockA{\textit{Faculty of Information Technology,} \\
+\textit{Posts and Telecommunications Institute of Technology,}\\
+Ho Chi Minh City, 700000, Viet Nam\\
+% \IEEEauthorblockA{\textit{FernUniversität in Hagen} \\
+% \textit{Faculty of Mathematics and Computer Science,}\\
+% 58097 Hagen, Germany \\
+quyld@ptit.edu.vn}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Nguyen Minh Tuan}
+\IEEEauthorblockA{\textit{Faculty of Information Technology,} \\
+\textit{Posts and Telecommunications Institute of Technology,}\\
+Ho Chi Minh City, 700000, Viet Nam\\
+minhtuan@ptit.edu.vn}
+% \and
+% \IEEEauthorblockN{3\textsuperscript{rd} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address}
+% \and
+% \IEEEauthorblockN{4\textsuperscript{th} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address}
+% \and
+% \IEEEauthorblockN{5\textsuperscript{th} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address}
+% \and
+% \IEEEauthorblockN{6\textsuperscript{th} Given Name Surname}
+% \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% \textit{name of organization (of Aff.)}\\
+% City, Country \\
+% email address}
+}
+
+\maketitle
+
+\begin{abstract}
+Retrieval-Augmented Generation (RAG) improves large language models by grounding responses in external knowledge. However, conventional vector retrieval may return outdated information when multiple document versions coexist. Temporal filtering addresses this problem by restricting retrieval to information valid at the query time, while GraphRAG additionally exploits
+entity relationships to support structured reasoning. This raises an important question: when both approaches use equivalent temporal constraints, does graph structure still provide additional benefits? This paper presents a controlled protocol for comparing Temporal
+Vector RAG and Temporal GraphRAG using the same corpus and temporal metadata. The protocol covers factual, temporal, relational, multi-hop, and historical queries and specifies retrieval effectiveness, answer accuracy, temporal accuracy, and efficiency metrics. The current manuscript reports the dataset and evaluation design; numerical benchmark results are reported only after the frozen testset and four-system experiment have been executed.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Retrieval-Augmented Generation, GraphRAG, Temporal RAG,
+Vector Retrieval, Time-Aware Retrieval
+\end{IEEEkeywords}
+
+Retrieval-augmented generation (RAG) improves the factual grounding of Large Language Models (LLMs) by retrieving external knowledge before response generation \cite{Lewis2020, Gao2023}. Conventional RAG typically relies on vector similarity to retrieve semantically relevant document chunks. However, semantic relevance does not guarantee temporal validity. In evolving information environments, multiple versions of policies, regulations, curricula, or administrative documents may coexist, causing
+outdated but semantically similar information to be retrieved. A practical solution is to associate documents with validity intervals and restrict retrieval according to the query time. Given a query time $t_q$, a document $d_i$ is temporally valid when
+
+\begin{equation}
+t_i^{start} \leq t_q \leq t_i^{end}.
+\end{equation}
+
+We refer to vector-based retrieval combined with this constraint as \textit{Temporal Vector RAG}. This approach can remove outdated evidence without requiring an explicit knowledge graph. Instead, graph-based RAG treats knowledge as entities and relationships, allowing retrieval over connected information \cite{Edge2024,Guo2024,Gutierrez2024}. Recent approaches have incorporated temporal information into graph-based retrieval to solve evolving knowledge and time conflicts \cite{Han2025TGRAG,Li2025TGRAG}. But graph construction and traversal
+introduce more complexity. This raises a very important question: when both graph and vector retrieval run under the same temporal constraints? Previous studies indicate that graph-based retrieval is not universally superior to conventional RAG and that its effectiveness depends on query characteristics \cite{Xiang2025}. Nevertheless, the value of graph  structure under controlled temporal conditions remains insufficiently understood. Simple time-sensitive queries may be effectively handled by temporal metadata filtering alone, whereas relational and multi-hop queries may require explicit graph connections. To investigate this issue, this paper defines a controlled comparison of \textit{Temporal Vector RAG} and \textit{Temporal GraphRAG} under the same corpus, temporal metadata, query set, and generation model. Queries are grouped into factual, temporal, relational, multi-hop, and historical-evolution categories to determine how query characteristics affect the relative benefit of graph-based retrieval. The main contributions of this work are:
+
+\begin{itemize}
+
+    \item A controlled comparison of Temporal Vector RAG and Temporal GraphRAG that separates the effect of graph structure from temporal filtering.
+    \item A query-oriented evaluation covering different levels of temporal and relational complexity.
+    \item An empirical analysis of retrieval quality, answer accuracy, temporal accuracy, and efficiency to identify when graph-based retrieval is justified.
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{Vector-Based RAG}
+
+One way to improve the factual grounding of LLM responses is using external retrieval with language generation \cite{Lewis2020}. Most conventional RAG systems use dense vector representations to retrieve text chunks according to semantic similarity \cite{Gao2023}. This approach is efficient and widely applicable, but retrieval relevance is primarily semantic and does not inherently account for whether retrieved information is valid at a particular time. Temporal metadata filtering provides a simple extension by restricting candidate documents according to their validity periods before or during retrieval.
+
+\subsection{Graph-Based and Temporal GraphRAG}
+
+Graph-based RAG organizes information as entities and relationships, allowing retrieval to exploit structural connections that are not explicitly represented in independent text chunks. GraphRAG uses graph representations and community-level information for retrieval over distributed knowledge \cite{Edge2024}, and other graph-based methods aim at efficient graph retrieval and multi-hop reasoning \cite{Guo2024,Gutierrez2024}.
+
+Temporal extensions further incorporate time into graph-based retrieval. T-GRAG models temporal knowledge and performs time-aware subgraph retrieval to reduce temporal conflicts \cite{Li2025TGRAG}. Likewise, TG-RAG models update knowledge via temporal graph structures and time-aware retrieval \cite{Han2025TGRAG}. The studies show how graph structure and temporal information can be combined in dynamic knowledge settings.
+
+\subsection{Research Gap}
+
+Recent comparative studies have shown that graph-based retrieval does not always outperform conventional RAG for all types of queries \cite{Xiang2025}. Graph structures are expected to be more useful when queries require relational or multi-hop reasoning, while simpler queries may be sufficiently addressed through vector retrieval.
+
+However, existing comparisons do not fully isolate the benefit of graph structure from that of temporal filtering. In particular, when both vector-based and graph-based systems use the same temporal validity constraints, it remains unclear whether the additional graph structure provides significant benefits and for which types of queries. This work addresses this gap through a controlled comparison of Temporal Vector RAG and Temporal GraphRAG under equivalent temporal conditions.
+
+\section{Comparative Framework}
+
+\subsection{Problem Formulation}
+
+Let $\mathcal{D}=\{d_1,d_2,\ldots,d_n\}$ denote a document collection in which multiple versions of the same or related information may coexist. Each document $d_i$ is associated with a validity interval $[t_i^{start}, t_i^{end}]$ that indicates the time period over which its content is valid. Given a user query $q$ and a query time $t_q$, the objective is to retrieve evidence that is both semantically relevant to $q$ and temporally valid at $t_q$.
+
+The temporal validity of a document is defined by the binary function
+
+\begin{equation}
+V(d_i,t_q)=
+\begin{cases}
+1, & t_i^{start} \leq t_q \leq t_i^{end},\\
+0, & \text{otherwise}.
+\end{cases}
+\label{eq:temporal_validity}
+\end{equation}
+
+Only evidence satisfying $V(d_i,t_q)=1$ is considered temporally valid for the query. This common validity condition is applied to both retrieval approaches to ensure that their temporal information is equivalent.
+
+\subsection{Temporal Vector RAG}
+
+Temporal Vector RAG extends conventional vector retrieval with temporal validity filtering. Each document or chunk $d_i$ is encoded into a dense vector $\mathbf{v}_i$, while the query $q$ is represented by $\mathbf{v}_q$. Semantic relevance is measured by means of cosine similarity:
+
+\begin{equation}
+S(q,d_i)=\frac{\mathbf{v}_q \cdot \mathbf{v}_i}{\|\mathbf{v}_q\|\|\mathbf{v}_i\|}.
+\label{eq:similarity}
+\end{equation}
+
+Temporal filtering restricts retrieval to the valid candidate set
+
+\begin{equation}
+\mathcal{D}_{t_q}=\{d_i \in \mathcal{D} \mid V(d_i,t_q)=1\}.
+\label{eq:temporal_documents}
+\end{equation}
+
+The Temporal Vector RAG retriever then selects the top-$k$ documents from $\mathcal{D}_{t_q}$ according to semantic similarity:
+
+\begin{equation}
+R_V(q,t_q)=\operatorname{TopK}_{d_i \in \mathcal{D}_{t_q}} S(q,d_i).
+\label{eq:temporal_vector}
+\end{equation}
+
+This design provides a lightweight time-aware retrieval mechanism without explicitly modeling relationships among entities.
+
+\subsection{Temporal GraphRAG}
+
+Temporal GraphRAG represents the document collection as a knowledge graph $G=(V,E)$, where $V$ contains entities or knowledge units and $E$ represents relationships among them. Temporal validity information is associated with graph elements according to the documents from which they are derived.
+
+For a query time $t_q$, temporal pruning produces a valid graph view
+
+\begin{equation}
+G_{t_q}=(V_{t_q},E_{t_q}),
+\label{eq:temporal_graph}
+\end{equation}
+
+where graph elements supported only by temporally invalid evidence are excluded from the retrieval view. Importantly, temporal pruning does not permanently delete information from the original graph; it creates a query-specific temporal view so that historical knowledge remains available for queries referring to earlier periods.
+
+Retrieval is then performed over $G_{t_q}$ to identify query-relevant entities, relationships, and connected evidence. Unlike Temporal Vector RAG, which ranks individual chunks primarily according to semantic similarity, Temporal GraphRAG can exploit explicit relationships between knowledge units and traverse connected evidence when answering relational or multi-hop queries.
+
+\subsection{Controlled Comparison}
+
+To isolate the contribution of graph structure, Temporal Vector RAG and Temporal GraphRAG are evaluated under equivalent experimental conditions. Both systems use the same source documents, temporal validity metadata, query set, and generation model. The primary difference is therefore the retrieval representation and mechanism: Temporal Vector RAG retrieves temporally valid chunks from a vector index, whereas Temporal GraphRAG retrieves temporally valid evidence through graph-based structures.
+
+For additional analysis, two non-temporal baselines, conventional Vector RAG and GraphRAG, are also included. The resulting experimental design consists of four systems:
+
+\begin{table}[htbp]
+\caption{Retrieval Systems Used in the Comparison}
+\label{tab:systems}
+\centering
+\begin{tabular}{lcc}
+\hline
+\textbf{System} & \textbf{Temporal} & \textbf{Graph} \\
+\hline
+Vector RAG & No & No \\
+Temporal Vector RAG & Yes & No \\
+GraphRAG & No & Yes \\
+Temporal GraphRAG & Yes & Yes \\
+\hline
+\end{tabular}
+\end{table}
+
+This $2\times2$ design enables two effects to be examined separately: the improvement obtained from temporal validity filtering and the additional improvement attributable to graph structure under temporal control.
+
+
+\section{Experimental Setup}
+
+\subsection{Dataset}
+
+Our experiments are conducted on a temporally evolving document collection that contains multiple versions of educational documents released from 2022 to 2026. The corpus contains admission policies, curriculum documents, academic regulations and administrative decisions. These document types are suitable for temporal retrieval because newer versions may replace or modify previously valid information while older versions remain relevant to historical queries.
+
+Each document is associated with temporal metadata represented by a validity interval $[t^{start},t^{end}]$. If there is no expiration date specified in a document, the document is deemed to have an open-ended validity period up to its replacement by a newer version. The vector index and the knowledge graph are built from the same source documents and temporal metadata, allowing a consistent comparison of the two retrieval paradigms.
+
+\begin{table}[htbp]
+\caption{Dataset Statistics}
+\label{tab:dataset}
+\centering
+\begin{tabular}{lr}
+\hline
+\textbf{Item} & \textbf{Value} \\
+\hline
+Admission Policies & 13 \\
+Curriculum Documents & 10 \\
+Academic Regulations & 2 \\
+Administrative Decisions & 4 \\
+Total Documents & 29 \\
+Document Versions & 19 \\
+Time Span & 2022--2026 \\
+Graph Nodes & 2303 \\
+Graph Relationships & 2804 \\
+\hline
+\end{tabular}
+\end{table}
+\subsection{Query Set}
+
+A query set is constructed to evaluate retrieval behavior under different levels of temporal and relational complexity. Each temporal or historical query is associated with a reference time $t_q$; non-temporal queries use $t_q=\varnothing$ and are excluded from TemporalAcc aggregation. Every query has manually verified relevant evidence and gold document identifiers. To examine when graph structure becomes beneficial, the queries are divided into five categories: factual, temporal, relational, multi-hop, and historical-evolution queries.
+
+\begin{table}[htbp]
+\caption{Query Categories}
+\label{tab:query_categories}
+\centering
+\begin{tabular}{p{1.8cm}p{5.4cm}}
+\hline
+\textbf{Category} & \textbf{Description} \\
+\hline
+Factual & Direct retrieval of a specific fact from the corpus. \\
+Temporal & Retrieval of information valid at a certain time \\ 
+Relational & Queries with a well-defined relationship between entities. \\ 
+Multi-hop & queries that need evidence on multiple interrelated relations. \\
+Historical & Questions about changes between document versions or periods of time. \\
+\hline
+\end{tabular}
+\end{table}
+
+This taxonomy is designed to separate queries that can potentially be answered through temporal filtering alone from those that may benefit from explicit graph structure. In particular, factual and temporal queries are expected to require limited relational reasoning, whereas relational, multi-hop, and historical-evolution queries may require connections among multiple knowledge units.
+
+\subsection{Compared Systems}
+
+Four retrieval configurations are evaluated. \textit{Vector RAG} serves as the conventional semantic retrieval baseline. \textit{Temporal Vector RAG} applies the temporal validity constraint defined in (\ref{eq:temporal_validity}) to vector retrieval. \textit{GraphRAG} provides the non-temporal graph-based baseline, while \textit{Temporal GraphRAG} applies temporal pruning before graph-based retrieval. All systems use the same document corpus, query set, retrieval depth $k$, and generation model whenever applicable.
+
+To ensure a controlled comparison, the generation stage is kept identical across all four systems. Therefore, differences in answer quality can be primarily attributed to the retrieved evidence rather than to differences in the underlying LLM.
+
+\subsection{Evaluation Metrics}
+
+Retrieval effectiveness is evaluated using Precision@$k$, Recall@$k$, and Mean Reciprocal Rank (MRR), all computed at the \textit{document level}. Specifically, retrieved text units are mapped to their source documents, and gold evidence is expressed as a set of document identifiers. Precision@$k$ is defined as the proportion of the top-$k$ retrieved documents that are relevant. Recall@$k$ measures the proportion of relevant documents retrieved within the top-$k$ results. MRR is the reciprocal rank of the first relevant document in the ranked list.
+
+To specifically evaluate time-aware retrieval, we additionally measure \textit{Temporal Accuracy}, defined as
+\begin{equation}
+\text{TemporalAcc}(q)=\frac{|\{d\in R_k(q): d\in G(q) \wedge V(d,t_q)=1\}|}{k},
+\label{eq:temporal_acc}
+\end{equation}
+where $R_k(q)$ denotes the top-$k$ retrieved documents, $G(q)$ is the set of gold documents for query $q$, and the denominator is always $k$ (the fixed retrieval depth). For an overall score, the mean is taken only over queries with a defined $t_q$; a missing $t_q$ is not treated as a zero score. This metric is particularly important when semantically similar but outdated document versions coexist in the corpus.
+
+Answer quality is evaluated using answer accuracy against manually verified reference answers. Results are also reported separately for the five query categories to determine whether the relative advantage of graph-based retrieval changes with query complexity.
+
+Finally, retrieval efficiency is evaluated using average retrieval latency and the number of retrieved context tokens supplied to the generation model. These measurements allow the accuracy improvements of graph-based retrieval to be considered together with its additional computational cost.
+
+\subsection{Implementation Settings}
+
+All four systems are implemented using the same document preprocessing and generation pipeline. Documents are divided into comparable textual units before indexing. Vector RAG and Temporal Vector RAG use the same embedding model and similarity metric, while GraphRAG and Temporal GraphRAG are constructed from the same source corpus. The same LLM, generation parameters, and top-$k$ retrieval setting are used across experiments. Detailed implementation parameters are summarized in Table~\ref{tab:settings}.
+
+\begin{table}[!htbp]
+\caption{Experimental Settings}
+\label{tab:settings}
+\centering
+\begin{tabular}{ll}
+\hline
+\textbf{Parameter} & \textbf{Setting} \\
+\hline
+Embedding Model & BAAI/bge-m3 (1024-dim, cosine) \\
+Generation Model & Gemini 3.1 Flash-Lite (temperature 0) \\
+Chunk Size & $\sim$1,200 tokens (precomputed) \\
+Chunk Overlap & N/A --- precomputed text units \\
+Top-$k$ & 5 \\
+Vector Similarity & Cosine \\
+Temporal Metadata & $[t^{start},t^{end}]$ \\
+Number of Queries & 50 (10 per category, human-verified) \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Experimental Procedure}
+
+For each temporal or historical query, the query time $t_q$ is identified from the temporal expression in the question or assigned according to the corresponding evaluation scenario. Non-temporal queries have $t_q=\varnothing$ and are excluded from TemporalAcc aggregation. The same query is then submitted independently to all four retrieval systems. Vector RAG and GraphRAG retrieve evidence without temporal filtering, whereas Temporal Vector RAG and Temporal GraphRAG restrict retrieval using the validity condition defined in (\ref{eq:temporal_validity}).
+
+Each system returns the top-$k$ retrieved evidence, which is provided to the same generation model using an identical prompt template. The generated answers are evaluated against manually verified reference answers. Retrieval and answer performance are measured both overall and separately for each query category.
+
+To reduce generation variability, the generation parameters are kept fixed across all experiments. The comparison therefore focuses on differences in retrieved evidence rather than differences in the generation configuration. 
+
+\section{Results and Analysis}
+\textit{Manuscript status.} The repository currently contains the benchmark protocol and data index, but not a completed four-system run. Accordingly, the tables below use ``--'' until raw results, a frozen testset hash, and a run manifest are available.\par
+
+
+\subsection{Overall Performance}
+
+Table~\ref{tab:overall_results} compares the overall performance of the four retrieval systems. The comparison is designed to distinguish the effect of temporal filtering from the additional contribution of graph structure. In particular, the difference between Vector RAG and Temporal Vector RAG reflects the benefit of temporal validity filtering in vector retrieval, while the difference between GraphRAG and Temporal GraphRAG reflects its effect on graph-based retrieval.
+
+\begin{table*}[htbp]
+\caption{Overall Performance of the Compared RAG Systems}
+\label{tab:overall_results}
+\centering
+\begin{tabular}{lcccccc}
+\hline
+\textbf{System} & \textbf{P@5} & \textbf{R@5} & \textbf{MRR} & \textbf{Temporal Acc.} & \textbf{Answer Acc.} & \textbf{Retrieval Latency (s)} \\
+\hline
+Vector RAG          & -- & -- & -- & -- & -- & -- \\
+Temporal Vector RAG & -- & -- & -- & -- & -- & -- \\
+GraphRAG            & -- & -- & -- & -- & -- & -- \\
+Temporal GraphRAG   & -- & -- & -- & -- & -- & -- \\
+\hline
+\end{tabular}
+\end{table*}
+
+No numerical result is reported in this protocol version. After the four systems are executed, this paragraph must be replaced by a manifest-backed comparison of temporal filtering and graph structure.
+
+\subsection{Performance by Query Type}
+
+To determine when graph structure provides additional benefits, Table~\ref{tab:graph_gain} reports answer accuracy separately for the five query categories. The graph gain for category $c$ is defined as
+
+\begin{equation}
+\Delta_G(c)=A_{TG}(c)-A_{TV}(c),
+\label{eq:graph_gain}
+\end{equation}
+
+where $A_{TG}(c)$ and $A_{TV}(c)$ denote the answer accuracy of Temporal GraphRAG and Temporal Vector RAG, respectively.
+
+\begin{table}[!htbp]
+\caption{Graph Gain Across Query Categories}
+\label{tab:graph_gain}
+\centering
+\begin{tabular}{lccc}
+\hline
+\textbf{Query Type} & \textbf{TV-RAG} & \textbf{TG-RAG} & $\boldsymbol{\Delta_G}$ \\
+\hline
+Factual    & -- & -- & -- \\
+Temporal   & -- & -- & -- \\
+Relational & -- & -- & -- \\
+Multi-hop  & -- & -- & -- \\
+Historical & -- & -- & -- \\
+\hline
+\end{tabular}
+\end{table}
+
+Category-level numerical results are not reported until the frozen testset and paired system runs are available. The planned analysis compares Temporal GraphRAG with Temporal Vector RAG for each of the five categories using the paired query IDs.
+
+\subsection{Accuracy--Efficiency Trade-off}
+
+Graph-based retrieval introduces additional processing for graph construction and traversal. Therefore, improvements in retrieval or answer quality should be considered together with retrieval cost. Retrieval latency and context-token results are not reported until the four-system run is complete. The final analysis will report paired averages and the additional cost of graph traversal.
+
+The efficiency interpretation will be based on the paired accuracy--latency trade-off after execution. If graph gain is small for a category, Temporal Vector RAG may be preferable; if graph structure produces a reproducible gain, its additional retrieval cost must be reported alongside that gain.
+
+\include{thebibliography}
+
+% \vspace{12pt}
+% \color{red}
+% IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
+
+\end{document}

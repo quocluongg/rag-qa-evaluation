@@ -1,0 +1,12 @@
+output/lancedb/
+output/lancedb.zip
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+*.lance
+.DS_Store
+.env
+results/
+data/
