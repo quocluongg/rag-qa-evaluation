@@ -166,7 +166,7 @@ Hãy cho điểm khách quan và giải thích ngắn gọn bằng tiếng Việ
             updated_records.append(rec)
             if i % 10 == 0:
                 print(f"Judged {i}/{len(records)} records...")
-            time.sleep(0.5)
+            time.sleep(2.0)
 
         records = updated_records
 

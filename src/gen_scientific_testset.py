@@ -193,7 +193,7 @@ def main():
                 with raw_jsonl.open("a", encoding="utf-8") as f:
                     f.write(json.dumps(cand, ensure_ascii=False) + "\n")
                 print(f"[{counts[cat]}/{targets[cat]}] Generated {cat}: {cand['question'][:60]}...")
-            time.sleep(1.0)
+            time.sleep(2.0)
 
     # Export to finalized CSV
     with args.out.open("w", newline="", encoding="utf-8") as f:
