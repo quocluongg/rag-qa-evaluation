@@ -43,6 +43,48 @@ class EvaluationScore(BaseModel):
     rationale: str = Field(description="Giải thích ngắn gọn lý do chấm điểm bằng tiếng Việt")
 
 
+def build_judge_prompt(
+    question: str,
+    category: str,
+    reference_answer: str,
+    context: str,
+    answer: str,
+) -> str:
+    multi_hop_rubric = ""
+    if category == "multi_hop_relational":
+        multi_hop_rubric = """
+4. Quy tắc riêng cho câu hỏi multi_hop_relational:
+   - Nếu câu trả lời chỉ đúng một vế trong hai vế của đáp án chuẩn, correctness tối đa là 0.5.
+   - Nếu câu trả lời đúng cả hai vế, correctness là 1.0.
+   - Nếu câu trả lời từ chối toàn bộ hoặc không nêu thông tin cho cả hai vế, correctness là 0.0.
+   - Không suy đoán rằng ngữ cảnh có thông tin nếu câu trả lời không nêu; chỉ chấm dựa trên nội dung câu trả lời và đáp án chuẩn.
+"""
+
+    return f"""Bạn là trọng tài AI công tâm trong cuộc thi đánh giá hệ thống hỏi đáp RAG.
+Hãy đánh giá câu trả lời của hệ thống theo câu hỏi và đáp án chuẩn.
+
+[CÂU HỎI]: {question}
+[PHÂN LOẠI]: {category}
+[ĐÁP ÁN CHUẨN]: {reference_answer}
+[NGỮ CẢNH TRUY HỒI ĐƯỢC CẤP]: {context if context else '(Hệ thống không có ngữ cảnh truy hồi)'}
+[CÂU TRẢ LỜI CỦA MÔ HÌNH]: {answer}
+
+TIÊU CHÍ CHẤM ĐIỂM:
+1. correctness (0.0 -> 1.0):
+   - 1.0: Trả lời đúng sự thật theo đáp án chuẩn.
+   - 0.5: Trả lời đúng một phần hoặc có ý đúng nhưng chưa đầy đủ.
+   - 0.0: Trả lời sai sự thật, hoặc từ chối sai (câu hỏi có đáp án nhưng lại nói không biết).
+   - Nếu câu hỏi thuộc nhóm 'unanswerable_negative' và mô hình trả lời đúng rằng tài liệu không có thông tin -> Cho 1.0 điểm.
+2. faithfulness (0.0 -> 1.0):
+   - 1.0: Không bịa đặt sự thật (mọi dữ kiện đều có trong ngữ cảnh, hoặc từ chối đúng khi không có thông tin).
+   - 0.0: Bịa đặt dữ kiện không có thực (hallucination).
+3. refusal_appropriate:
+   - True nếu từ chối đúng lúc (khi không có thông tin) hoặc trả lời đúng khi có thông tin.
+   - False nếu bịa đặt khi không có thông tin, hoặc từ chối lười biếng dù tài liệu có thông tin.
+{multi_hop_rubric}
+Hãy cho điểm khách quan và giải thích ngắn gọn bằng tiếng Việt."""
+
+
 def precision_at_k(retrieved: list[str], gold: list[str], k: int = 5) -> float:
     top_k = retrieved[:k]
     hits = sum(1 for d in top_k if d in gold)
@@ -129,29 +171,7 @@ def main():
             ctx = rec.get("context", "")
             cat = rec.get("category", "")
 
-            judge_prompt = f"""Bạn là trọng tài AI công tâm trong cuộc thi đánh giá hệ thống hỏi đáp RAG.
-Hãy đánh giá câu trả lời của hệ thống theo câu hỏi và đáp án chuẩn.
-
-[CÂU HỎI]: {q}
-[PHÂN LOẠI]: {cat}
-[ĐÁP ÁN CHUẨN]: {ref}
-[NGỮ CẢNH TRUY HỒI ĐƯỢC CẤP]: {ctx if ctx else '(Hệ thống không có ngữ cảnh truy hồi)'}
-[CÂU TRẢ LỜI CỦA MÔ HÌNH]: {ans}
-
-TIÊU CHÍ CHẤM ĐIỂM:
-1. correctness (0.0 -> 1.0):
-   - 1.0: Trả lời đúng sự thật theo đáp án chuẩn.
-   - 0.5: Trả lời đúng một phần hoặc có ý đúng nhưng chưa đầy đủ.
-   - 0.0: Trả lời sai sự thật, hoặc từ chối sai (câu hỏi có đáp án nhưng lại nói không biết).
-   - Nếu câu hỏi thuộc nhóm 'unanswerable_negative' và mô hình trả lời đúng rằng tài liệu không có thông tin -> Cho 1.0 điểm.
-2. faithfulness (0.0 -> 1.0):
-   - 1.0: Không bịa đặt sự thật (mọi dữ kiện đều có trong ngữ cảnh, hoặc từ chối đúng khi không có thông tin).
-   - 0.0: Bịa đặt dữ kiện không có thực (hallucination).
-3. refusal_appropriate:
-   - True nếu từ chối đúng lúc (khi không có thông tin) hoặc trả lời đúng khi có thông tin.
-   - False nếu bịa đặt khi không có thông tin, hoặc từ chối lười biếng dù tài liệu có thông tin.
-
-Hãy cho điểm khách quan và giải thích ngắn gọn bằng tiếng Việt."""
+            judge_prompt = build_judge_prompt(q, cat, ref, ctx, ans)
 
             try:
                 res: EvaluationScore = judge_llm.invoke(judge_prompt)
