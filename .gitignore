@@ -1,11 +1,10 @@
-output/lancedb/
-output/lancedb.zip
+# output/lancedb is tracked for turnkey Colab execution
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .venv/
 venv/
-*.lance
+# *.lance allowed
 .DS_Store
 .env
 results/
