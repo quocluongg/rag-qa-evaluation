@@ -120,9 +120,9 @@ else:
     !cd $WORK_DIR && git pull origin main
 
 %cd $WORK_DIR
-if str(WORK_DIR) not in sys.path:
-    sys.path.insert(0, str(WORK_DIR))
-    sys.path.insert(0, str(WORK_DIR / "src"))
+for p in (WORK_DIR, WORK_DIR / "src"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 print(f"Thư mục làm việc hiện tại: {Path.cwd()}")
 """)
@@ -167,6 +167,8 @@ Kiểm tra sự toàn vẹn của:
 """)
 
 add_code("""# Cell 4: Kiểm tra tính toàn vẹn dữ liệu
+import subprocess
+import sys
 import lancedb
 import pandas as pd
 from pathlib import Path
@@ -184,6 +186,17 @@ for tname in ["text_unit_text", "entity_description", "community_full_content"]:
     assert tname in tables, f"Thiếu bảng {tname} trong LanceDB!"
     count = db.open_table(tname).count_rows()
     print(f"   -> Bảng '{tname}': {count} dòng.")
+
+try:
+    db.open_table("text_unit_text").to_pandas()
+    print("   -> text_unit_text: đọc dữ liệu vector thành công.")
+except Exception as e:
+    print(f"   -> [CẢNH BÁO] text_unit_text chưa đọc được dữ liệu: {e}")
+    print("      Đang tái tạo chỉ mục vector từ output/text_units.parquet...")
+    subprocess.run([sys.executable, "src/build_lancedb_index.py"], check=True)
+    db = lancedb.connect("output/lancedb")
+    db.open_table("text_unit_text").to_pandas()
+    print("   -> [OK] Đã tái tạo và xác thực text_unit_text.")
 
 print("\\n3. Kiểm tra các file Parquet đồ thị tri thức GraphRAG:")
 pq_files = ["entities.parquet", "relationships.parquet", "communities.parquet", "community_reports.parquet", "text_units.parquet"]
@@ -233,7 +246,18 @@ else:
     print(f"[OK] Bộ testset đã sẵn sàng tại {LOCAL_TESTSET}")
 
 import pandas as pd
+from retrieval.source_map import get_source_map
+from testset_utils import repair_gold_doc_ids
+
 df_test = pd.read_csv(LOCAL_TESTSET)
+testset_rows = df_test.to_dict("records")
+repaired = repair_gold_doc_ids(testset_rows, get_source_map())
+if repaired:
+    df_test = pd.DataFrame(testset_rows)
+    df_test.to_csv(LOCAL_TESTSET, index=False, encoding="utf-8")
+    shutil.copy(LOCAL_TESTSET, DRIVE_TESTSET)
+    print(f"[OK] Đã bổ sung gold_doc_ids cho {repaired} câu hỏi từ gold_tu_ids.")
+
 print(f"\\nPhân bổ câu hỏi theo nhóm:")
 print(df_test["category"].value_counts())
 print(f"\\nXem thử 3 câu hỏi đầu tiên:")
@@ -258,6 +282,9 @@ print("Đang khởi tạo 3 hệ thống...")
 sys1_vanilla = VanillaLLMRetriever(k=0)
 sys2_vector  = VectorRAG(k=5, embed_model="BAAI/bge-m3")
 sys3_graph   = GraphRAG(k=5, embed_model="BAAI/bge-m3")
+
+print("Đang nạp mô hình embedding và kiểm tra chỉ mục LanceDB...")
+sys2_vector.ensure_ready()
 
 # Thử nghiệm truy hồi với 1 câu hỏi mẫu
 sample_query = "Ngành Công nghệ vi mạch bán dẫn đào tạo những khối kiến thức nào?"

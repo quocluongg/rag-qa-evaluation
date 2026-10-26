@@ -1,4 +1,4 @@
-# output/lancedb is tracked for turnkey Colab execution
+# LanceDB metadata is kept in git; missing data files are rebuilt automatically
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
@@ -8,4 +8,3 @@ venv/
 .DS_Store
 .env
 results/
-data/

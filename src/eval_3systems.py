@@ -84,6 +84,11 @@ def main():
     records = [json.loads(line) for line in in_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     print(f"Loaded {len(records)} benchmark records.")
 
+    from retrieval.source_map import get_source_map
+    from testset_utils import gold_docs_for_row
+
+    source_map = get_source_map()
+
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     judged_path = out_dir / "judged_benchmark.jsonl"
@@ -179,9 +184,20 @@ Hãy cho điểm khách quan và giải thích ngắn gọn bằng tiếng Việ
         sub = df[df["system"] == sys_name]
         is_vanilla = sys_name == "vanilla_llm"
 
-        p_k = None if is_vanilla else np.mean([precision_at_k(r["retrieved_doc_ids"], r["gold_doc_ids"], args.k) for _, r in sub.iterrows()])
-        r_k = None if is_vanilla else np.mean([recall_at_k(r["retrieved_doc_ids"], r["gold_doc_ids"], args.k) for _, r in sub.iterrows()])
-        mrr_val = None if is_vanilla else np.mean([mrr(r["retrieved_doc_ids"], r["gold_doc_ids"]) for _, r in sub.iterrows()])
+        retrieved_docs = [r["retrieved_doc_ids"] for _, r in sub.iterrows()]
+        gold_docs = [gold_docs_for_row(r, source_map) for _, r in sub.iterrows()]
+        p_k = None if is_vanilla else np.mean([
+            precision_at_k(retrieved, gold, args.k)
+            for retrieved, gold in zip(retrieved_docs, gold_docs)
+        ])
+        r_k = None if is_vanilla else np.mean([
+            recall_at_k(retrieved, gold, args.k)
+            for retrieved, gold in zip(retrieved_docs, gold_docs)
+        ])
+        mrr_val = None if is_vanilla else np.mean([
+            mrr(retrieved, gold)
+            for retrieved, gold in zip(retrieved_docs, gold_docs)
+        ])
 
         acc = sub["answer_accuracy"].dropna().mean() if "answer_accuracy" in sub else None
         faith = sub["faithfulness"].dropna().mean() if "faithfulness" in sub else None

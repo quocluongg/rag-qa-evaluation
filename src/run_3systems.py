@@ -72,6 +72,8 @@ def main():
     from retrieval.vanilla_llm import VanillaLLMRetriever
     from retrieval.vector_rag import VectorRAG
     from retrieval.graph_rag import GraphRAG
+    from retrieval.source_map import get_source_map
+    from testset_utils import repair_gold_doc_ids, split_ids
 
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -89,7 +91,10 @@ def main():
 
     with open(args.testset, encoding="utf-8", newline="") as f:
         test_rows = list(csv.DictReader(f))
+    repaired = repair_gold_doc_ids(test_rows, get_source_map())
     print(f"Loaded testset: {len(test_rows)} queries from {args.testset}")
+    if repaired:
+        print(f"Recovered gold_doc_ids for {repaired} queries from gold_tu_ids.")
 
     # Shared generation LLM with zero temperature for deterministic, fair comparison
     answer_llm = ChatGoogleGenerativeAI(
@@ -122,8 +127,8 @@ def main():
         query = row.get("question", "").strip()
         cat = row.get("category", "general").strip()
         ref_ans = row.get("reference_answer", "").strip()
-        gold_docs = [x.strip() for x in row.get("gold_doc_ids", "").split("|") if x.strip()]
-        gold_tus = [x.strip() for x in row.get("gold_tu_ids", "").split("|") if x.strip()]
+        gold_docs = split_ids(row.get("gold_doc_ids"))
+        gold_tus = split_ids(row.get("gold_tu_ids"))
 
         for sys_name, retriever in systems.items():
             if (sys_name, qid) in completed:

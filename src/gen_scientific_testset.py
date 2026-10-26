@@ -78,10 +78,11 @@ def load_corpus_units() -> tuple[list[dict[str, Any]], dict[str, str]]:
     for _, row in tu_df.iterrows():
         tu_id = str(row["id"])
         text = str(row.get("text", "")).strip()
-        doc_ids = row.get("document_ids", [])
-        if hasattr(doc_ids, "tolist"):
-            doc_ids = doc_ids.tolist()
-        doc_filenames = [hash_to_filename.get(d_id, d_id) for d_id in doc_ids]
+        doc_id = row.get("document_id")
+        doc_filenames = []
+        if doc_id is not None and not (isinstance(doc_id, float) and doc_id != doc_id):
+            doc_key = str(doc_id)
+            doc_filenames = [hash_to_filename.get(doc_key, doc_key)]
         if text and len(text) > 80:
             units.append({
                 "tu_id": tu_id,

@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 
 from .base import BaseRetriever, Evidence, RetrievalResult
+from .index_utils import load_embedder
 from .source_map import get_source_map
 
 ROOT         = Path(__file__).resolve().parents[2]
@@ -42,10 +43,15 @@ class GraphRAG(BaseRetriever):
     """
     name = "graph_rag"
 
-    def __init__(self, k: int = 5, embed_model: str = "BAAI/bge-m3"):
+    def __init__(
+        self,
+        k: int = 5,
+        embed_model: str = "BAAI/bge-m3",
+        embedder=None,
+    ):
         super().__init__(k)
         self._embed_model_name = embed_model
-        self._embedder = None
+        self._embedder = embedder
         self._entities_df: pd.DataFrame | None = None
         self._rels_df:     pd.DataFrame | None = None
         self._tu_df:       pd.DataFrame | None = None
@@ -54,16 +60,25 @@ class GraphRAG(BaseRetriever):
         # Pre-computed entity embeddings matrix (lazy)
         self._entity_vecs: np.ndarray | None = None
         self._entity_ids_list: list[str] = []
+        self._entity_id_to_name: dict[str, str] = {}
+        self._entity_name_to_id: dict[str, str] = {}
 
     def _lazy_init(self):
         if self._entities_df is not None:
             return
-        from sentence_transformers import SentenceTransformer
-        self._embedder     = SentenceTransformer(self._embed_model_name)
+        self._embedder     = self._embedder or load_embedder(self._embed_model_name)
         self._entities_df  = pd.read_parquet(ENTITIES_PQ)
         self._rels_df      = pd.read_parquet(RELS_PQ)
         self._smap         = get_source_map()
         self._tu_df        = self._smap.tu_df
+
+        title_col = "title" if "title" in self._entities_df.columns else "name"
+        for _, row in self._entities_df.iterrows():
+            entity_id = str(row["id"])
+            entity_name = str(row.get(title_col, "") or "")
+            if entity_name:
+                self._entity_id_to_name[entity_id] = entity_name
+                self._entity_name_to_id.setdefault(entity_name, entity_id)
 
         # Pre-compute entity embeddings from name + description
         self._build_entity_index()
@@ -72,8 +87,9 @@ class GraphRAG(BaseRetriever):
         """Embed entity (name + description) for fast cosine lookup."""
         ent_texts = []
         ent_ids   = []
+        title_col = "title" if "title" in self._entities_df.columns else "name"
         for _, row in self._entities_df.iterrows():
-            name = str(row.get("name", "") or "")
+            name = str(row.get(title_col, "") or "")
             desc = str(row.get("description", "") or "")
             ent_texts.append(f"{name}. {desc}"[:512])
             ent_ids.append(row["id"])
@@ -98,28 +114,30 @@ class GraphRAG(BaseRetriever):
 
     def _bfs_expand(self, seed_entity_ids: list[str]) -> set[str]:
         """BFS depth-1: collect seed + their 1-hop neighbours via relationships."""
-        all_entity_ids = set(seed_entity_ids)
-        seed_set       = set(seed_entity_ids)
+        expanded_ids = set(seed_entity_ids)
+        seed_names = {
+            self._entity_id_to_name.get(entity_id, entity_id)
+            for entity_id in seed_entity_ids
+        }
 
-        # Build adjacency: entity_id → {neighbour entity_ids}
-        # relationships.parquet columns: source, target (entity names or ids)
-        # We need to match by entity id — check column names
         rels = self._rels_df
-
-        # Try common column name patterns
         src_col = "source" if "source" in rels.columns else "source_id"
         tgt_col = "target" if "target" in rels.columns else "target_id"
 
         if src_col in rels.columns and tgt_col in rels.columns:
             for _, rel in rels.iterrows():
-                s = str(rel[src_col])
-                t = str(rel[tgt_col])
-                if s in seed_set:
-                    all_entity_ids.add(t)
-                elif t in seed_set:
-                    all_entity_ids.add(s)
+                source_name = str(rel[src_col])
+                target_name = str(rel[tgt_col])
+                if source_name in seed_names:
+                    neighbour_id = self._entity_name_to_id.get(target_name)
+                    if neighbour_id:
+                        expanded_ids.add(neighbour_id)
+                elif target_name in seed_names:
+                    neighbour_id = self._entity_name_to_id.get(source_name)
+                    if neighbour_id:
+                        expanded_ids.add(neighbour_id)
 
-        return all_entity_ids
+        return expanded_ids
 
     def _collect_tu_ids(
         self, entity_ids: set[str], valid_filenames: set[str] | None = None

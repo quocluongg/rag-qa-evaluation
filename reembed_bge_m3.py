@@ -43,6 +43,7 @@ def build_schema():
     fields = [
         pa.field("id", pa.string()),
         pa.field("vector", pa.list_(pa.float32(), EMBED_DIM)),
+        pa.field("text", pa.string()),
         pa.field("create_date", pa.string()),
         pa.field("update_date", pa.string()),
     ]
@@ -113,6 +114,7 @@ def main():
         arrays = [
             pa.array(ids),
             vec_arr,
+            pa.array(texts),
             pa.array(create_list),
             pa.array(update_list),
         ]
