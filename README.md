@@ -6,8 +6,8 @@
 
 Repository nghiên cứu đối chứng có kiểm soát giữa 3 kiến trúc xử lý ngôn ngữ tự nhiên trong bài toán Hỏi–Đáp (QA) trên tập dữ liệu học thuật & quy chế hành chính của Học viện Công nghệ Bưu chính Viễn thông (PTIT):
 1. **Hệ thống 1 — LLM thuần (Vanilla LLM):** Không truy hồi, trả lời hoàn toàn từ tri thức tham số nội tại của mô hình (`gemini-3.5-flash-lite`, temperature=0.0).
-2. **Hệ thống 2 — Vector RAG:** Truy hồi ngữ nghĩa dày đặc (Dense Semantic Retrieval) bằng mô hình embedding `BAAI/bge-m3` và cơ sở dữ liệu vector LanceDB (Top-5 chunks).
-3. **Hệ thống 3 — GraphRAG:** Truy hồi dựa trên cấu trúc đồ thị tri thức Microsoft GraphRAG (Entity lookup + Subgraph BFS 1-hop expansion + Semantic re-ranking Top-5).
+2. **Hệ thống 2 — Vector RAG:** Truy hồi ngữ nghĩa dày đặc (Dense Semantic Retrieval) bằng mô hình embedding `BAAI/bge-m3` và cơ sở dữ liệu vector LanceDB (Top-8 chunks).
+3. **Hệ thống 3 — GraphRAG:** Truy hồi dựa trên cấu trúc đồ thị tri thức Microsoft GraphRAG (Entity lookup + Subgraph BFS 1-hop expansion + Semantic re-ranking Top-8).
 
 ---
 
@@ -21,22 +21,27 @@ Bộ câu hỏi được thiết kế theo các tiêu chuẩn benchmark quốc t
 
 Mọi câu hỏi đều được gán bằng chứng trích dẫn nguyên văn (`evidence_snippet`), mã định danh tài liệu chuẩn (`gold_doc_ids`), và mã khối văn bản chuẩn (`gold_tu_ids`).
 
+Bản dùng cho báo cáo là **`data/scientific_testset_v2.csv`**: 67 câu, trong đó **30 câu `multi_hop_relational`** (17 câu mới sinh có kiểm chứng từ bảng học phần của 9 chương trình đào tạo). Việc tăng số câu multi-hop giúp kiểm định thống kê theo nhóm ổn định hơn.
+
 ---
 
 ## 📊 2. Hệ thống Chỉ số Đánh giá (Evaluation Metrics)
 
 | Nhóm đánh giá | Chỉ số | Định nghĩa / Phương pháp đo |
 |---|---|---|
-| **Chất lượng truy hồi** | **Precision@5** | Tỷ lệ tài liệu truy hồi trong Top-5 thực sự liên quan (*LLM thuần: N/A*) |
-| | **Recall@5** | Tỷ lệ tài liệu chuẩn được hệ thống bao phủ thành công (*LLM thuần: N/A*) |
+| **Chất lượng truy hồi** | **Precision@8** | Tỷ lệ tài liệu truy hồi trong Top-8 thực sự liên quan (*LLM thuần: N/A*) |
+| | **Recall@8** | Tỷ lệ tài liệu chuẩn được hệ thống bao phủ thành công (*LLM thuần: N/A*) |
 | | **MRR** | Nghịch đảo vị trí xuất hiện của tài liệu đúng đầu tiên (*LLM thuần: N/A*) |
-| **Chất lượng câu trả lời** | **Answer Accuracy** | Độ chính xác ngữ nghĩa so với đáp án chuẩn (LLM-as-a-Judge, thang [0.0 - 1.0]) |
+| **Chất lượng câu trả lời** | **Answer Accuracy** | Điểm trung bình của **3 lần judge độc lập**, thang [0.0 - 1.0], kèm độ lệch chuẩn và mức đồng thuận |
+| | **Factual consistency guard** | Hạ điểm câu trả lời thiếu mã môn / tín chỉ / ngày tháng so với đáp án chuẩn |
 | **Độ tin cậy** | **Faithfulness** | Tỷ lệ không bịa đặt sự thật, bám sát ngữ cảnh (Chống ảo giác) |
-| | **Refusal Accuracy** | Khả năng từ chối chính xác đối với nhóm câu hỏi bẫy (`unanswerable`) |
+| | **Refusal Rate / Accuracy** | Tỷ lệ từ chối và khả năng từ chối chính xác nhóm câu hỏi bẫy (`unanswerable`) |
 | **Hiệu năng & Tài nguyên** | **Retrieval Latency** | Thời gian tìm kiếm vector / duyệt đồ thị (giây) |
 | | **Generation Latency**| Thời gian sinh câu trả lời của mô hình ngôn ngữ lớn (giây) |
 | | **Context Tokens** | Số lượng token ngữ cảnh nạp vào prompt (đo chi phí API) |
-| **Kiểm định Thống kê** | **Wilcoxon & Paired t-test** | Kiểm định cặp có ý nghĩa thống kê ($p < 0.05$) giữa các hệ thống |
+| **Kiểm định Thống kê** | **Bootstrap 95% CI** | Khoảng tin cậy cho Accuracy / Faithfulness |
+| | **McNemar + Wilcoxon (Holm)** | Kiểm định cặp có ý nghĩa thống kê ($p < 0.05$) giữa các hệ thống, overall và theo nhóm; McNemar dùng mức fully correct (score ≥ 0.99), Wilcoxon dùng điểm liên tục |
+| **Phân tích lỗi** | **Error taxonomy** | Phân loại multi-hop: `retrieval_miss`, `lazy_refusal`, `partial_answer`, `wrong_answer` |
 
 ---
 
@@ -47,7 +52,7 @@ Chỉ cần bấm vào huy hiệu Colab phía trên hoặc mở file [`RAG_QA_Be
    - Tên Secret: `GOOGLE_API_KEY`
    - Giá trị: Lấy miễn phí tại [Google AI Studio](https://aistudio.google.com/apikey).
 2. **Chạy tuần tự:** Bấm `Runtime` -> `Run all` (hoặc chạy từng cell theo số thứ tự từ 1 đến 9).
-3. **Cơ chế Checkpoint & Resume:** Kết quả và bộ câu hỏi được tự động đồng bộ sang Google Drive tại `/content/drive/MyDrive/rag_qa_benchmark/`. Nếu phiên Colab bị ngắt, việc chạy lại cell sẽ tiếp tục từ vị trí dừng mà không tốn lại quota API.
+3. **Cơ chế Checkpoint & Resume:** Kết quả và bộ câu hỏi được tự động đồng bộ sang Google Drive tại `/content/drive/MyDrive/rag_qa_benchmark/`. Nếu phiên Colab bị ngắt, việc chạy lại cell sẽ tiếp tục từ vị trí dừng mà không tốn lại quota API. Record cũ khác `prompt_version`/`top_k` (benchmark) hoặc `judge_version`/`judge_repeats` (judge) sẽ tự động bị loại và tạo file `.bak`.
 
 ---
 
@@ -61,14 +66,17 @@ pip install -r requirements.txt
 export GOOGLE_API_KEY="your-api-key"      # Linux / macOS
 $env:GOOGLE_API_KEY="your-api-key"       # Windows PowerShell
 
-# 3. Sinh bộ câu hỏi benchmark khoa học (50 câu)
-python src/gen_scientific_testset.py --size 50 --out data/scientific_testset_50.csv --resume
+# 3. Sinh lại testset v2 (67 câu, 30 multi-hop) từ bộ 50 câu gốc
+python src/expand_multihop_testset.py --source data/scientific_testset_50.csv --out data/scientific_testset_v2.csv --raw-out data/scientific_testset_v2.raw.jsonl --target-multihop 30
 
-# 4. Thực thi benchmark 3 hệ thống
-python src/run_3systems.py --testset data/scientific_testset_50.csv --output results/benchmark_run.jsonl --k 5 --resume
+# 4. Thực thi benchmark 3 hệ thống (Top-8)
+python src/run_3systems.py --testset data/scientific_testset_v2.csv --output results/benchmark_run.jsonl --k 8 --resume
 
-# 5. Đánh giá chỉ số và xuất bảng LaTeX / Biểu đồ
-python src/eval_3systems.py --input results/benchmark_run.jsonl --output-dir results --judge --resume
+# 5. Đánh giá chỉ số, kiểm định thống kê và xuất bảng LaTeX / Biểu đồ
+python src/eval_3systems.py --input results/benchmark_run.jsonl --output-dir results --judge --resume --judge-repeats 3 --k 8
+
+# 6. Phân tích lỗi multi-hop
+python src/analyze_errors.py --input results/judged_benchmark.jsonl --output-dir results --category multi_hop_relational --examples 3
 ```
 
 ---
@@ -88,14 +96,21 @@ rag-qa-evaluation/
 │   ├── text_units.parquet          # 376 text chunks (~1.200 tokens/chunk)
 │   ├── communities.parquet         # Cụm cộng đồng phân cấp
 │   └── metadata.json               # Metadata hiệu lực thời gian của tài liệu
+├── data/
+│   ├── scientific_testset_50.csv   # Bộ 50 câu gốc
+│   └── scientific_testset_v2.csv   # Bộ 67 câu dùng cho báo cáo (30 multi-hop)
 ├── src/
 │   ├── retrieval/
 │   │   ├── vanilla_llm.py          # Hệ thống 1: LLM thuần (No retrieval)
 │   │   ├── vector_rag.py           # Hệ thống 2: Vector RAG (LanceDB ANN)
 │   │   └── graph_rag.py            # Hệ thống 3: GraphRAG (BFS Subgraph + Rerank)
+│   ├── expand_multihop_testset.py  # Sinh testset v2 có kiểm chứng từ bảng học phần
 │   ├── gen_scientific_testset.py   # Bộ sinh câu hỏi 4 nhóm chuẩn khoa học
 │   ├── run_3systems.py             # Bộ điều phối thực nghiệm (Streaming JSONL runner)
-│   └── eval_3systems.py            # Chấm điểm RAGAS, kiểm định thống kê & xuất LaTeX
+│   ├── eval_3systems.py            # Chấm điểm, bootstrap CI, McNemar/Wilcoxon & xuất LaTeX
+│   ├── analyze_errors.py           # Phân loại lỗi multi-hop & xuất báo cáo định tính
+│   ├── stats_utils.py              # Bootstrap CI, McNemar, Holm, Wilcoxon
+│   └── text_utils.py               # Chuẩn hóa văn bản, phát hiện refusal, so khớp token
 └── results/                        # Thư mục chứa kết quả, bảng tổng hợp và biểu đồ
 ```
 

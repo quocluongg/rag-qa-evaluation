@@ -16,36 +16,76 @@ import argparse
 import csv
 import json
 import os
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TESTSET = ROOT / "data" / "scientific_testset_50.csv"
+sys.path.insert(0, str(ROOT / "src"))
+
+from text_utils import looks_like_refusal
+
+DEFAULT_TESTSET = ROOT / "data" / "scientific_testset_v2.csv"
 DEFAULT_OUTPUT = ROOT / "results" / "benchmark_run.jsonl"
 DEFAULT_MODEL = os.environ.get("GENERATOR_MODEL", "gemini-3.5-flash-lite")
+DEFAULT_K = 8
+PROMPT_VERSION = "v2-grounded-reasoning"
 
 
 def prompt_vanilla(query: str) -> str:
     return (
         "Bạn là trợ lý AI học thuật. Hãy trả lời câu hỏi tiếng Việt sau đây một cách chính xác dựa trên kiến thức của bạn. "
         "Nếu bạn không biết hoặc thông tin không chắc chắn, hãy trả lời rõ: "
-        "'Tôi không có đủ thông tin để trả lời câu hỏi này.' Tuyệt đối không tự suy diễn hoặc bịa đặt thông tin.\n\n"
+        "'Tôi không có đủ thông tin để trả lời câu hỏi này.' Không bịa đặt thông tin.\n\n"
         f"Câu hỏi: {query}\n\nTrả lời:"
     )
 
 
 def prompt_rag(query: str, context: str) -> str:
     return (
-        "Bạn là trợ lý AI học thuật. Hãy trả lời câu hỏi tiếng Việt sau đây CHỈ dựa trên các đoạn bằng chứng được cung cấp bên dưới. "
-        "Nếu bằng chứng không đủ để trả lời câu hỏi hoặc thông tin không có trong tài liệu, hãy trả lời rõ: "
-        "'Tài liệu được cung cấp không có đủ thông tin để trả lời câu hỏi này.' "
-        "Tuyệt đối không suy diễn dữ kiện ngoài bằng chứng. Hãy trả lời súc tích và chính xác.\n\n"
+        "Bạn là trợ lý AI học thuật. Hãy trả lời câu hỏi tiếng Việt sau đây CHỈ dựa trên các đoạn bằng chứng được cung cấp bên dưới.\n\n"
+        "QUY TẮC TRẢ LỜI:\n"
+        "1. Nếu câu hỏi có nhiều vế, phải trả lời ĐẦY ĐỦ từng vế, không bỏ sót.\n"
+        "2. Nếu thông tin nằm rải rác ở nhiều đoạn, hãy tổng hợp tất cả dữ kiện liên quan trước khi trả lời.\n"
+        "3. Được phép suy luận logic từ các dữ kiện CÓ TRONG bằng chứng (ví dụ: cộng/so sánh số tín chỉ, đối chiếu mốc thời gian). "
+        "Không được dùng kiến thức bên ngoài bằng chứng và không được bịa số liệu, mã, tên.\n"
+        "4. Chỉ từ chối khi bằng chứng KHÔNG chứa thông tin cho TẤT CẢ các vế. Nếu chỉ thiếu một phần, hãy trả lời phần có bằng chứng và nói rõ phần nào còn thiếu.\n"
+        "5. Trả lời súc tích, nêu rõ con số, mã và tên liên quan.\n\n"
         f"Câu hỏi: {query}\n\n"
         f"Bằng chứng được cung cấp:\n{context}\n\n"
         "Trả lời:"
     )
+
+
+def load_completed_records(out_path: Path, prompt_version: str, top_k: int) -> set[tuple[str, str]]:
+    """Load resume state, discarding rows produced by an older prompt/config."""
+    if not out_path.exists():
+        return set()
+    raw = [
+        json.loads(line)
+        for line in out_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    valid = [
+        r for r in raw
+        if r.get("prompt_version") == prompt_version and r.get("top_k") == top_k
+    ]
+    stale = len(raw) - len(valid)
+    if stale:
+        backup = out_path.with_suffix(out_path.suffix + ".bak")
+        backup.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in raw), encoding="utf-8")
+        dedup: dict[tuple[str, str], dict[str, Any]] = {}
+        for r in valid:
+            dedup[(r.get("system", ""), r.get("qid", ""))] = r
+        valid = list(dedup.values())
+        out_path.write_text(
+            "\n".join(json.dumps(r, ensure_ascii=False) for r in valid) + ("\n" if valid else ""),
+            encoding="utf-8",
+        )
+        print(f"Discarded {stale} stale records (prompt/config mismatch). Backup: {backup}")
+    return {(r.get("system", ""), r.get("qid", "")) for r in valid}
 
 
 def extract_text(resp: Any) -> str:
@@ -60,7 +100,7 @@ def main():
     parser.add_argument("--testset", default=str(DEFAULT_TESTSET))
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--model", default=DEFAULT_MODEL)
-    parser.add_argument("--k", type=int, default=5, help="Top-K context units for RAG systems")
+    parser.add_argument("--k", type=int, default=DEFAULT_K, help="Top-K context units for RAG systems")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
@@ -79,14 +119,8 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     completed: set[tuple[str, str]] = set()
-    if args.resume and out_path.exists():
-        for line in out_path.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                try:
-                    r = json.loads(line)
-                    completed.add((r.get("system", ""), r.get("qid", "")))
-                except Exception:
-                    pass
+    if args.resume:
+        completed = load_completed_records(out_path, PROMPT_VERSION, args.k)
         print(f"Resume mode: loaded {len(completed)} completed (system, qid) evaluations.")
 
     with open(args.testset, encoding="utf-8", newline="") as f:
@@ -113,6 +147,8 @@ def main():
         "model": args.model,
         "temperature": 0.0,
         "top_k": args.k,
+        "prompt_version": PROMPT_VERSION,
+        "testset": str(args.testset),
         "total_queries": len(test_rows),
         "systems": list(systems.keys()),
         "started_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -190,6 +226,9 @@ def main():
                 "generation_latency_s": generation_latency,
                 "total_latency_s": (retrieval_latency if sys_name != "vanilla_llm" else 0.0) + generation_latency,
                 "ctx_tokens": ctx_tokens,
+                "prompt_version": PROMPT_VERSION,
+                "top_k": args.k,
+                "answer_is_refusal": looks_like_refusal(ans),
                 "answer_accuracy": None,
                 "faithfulness": None,
             }
